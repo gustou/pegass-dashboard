@@ -1,0 +1,100 @@
+// Store global réactif (Svelte 5 runes) pour les données Pegass traitées.
+// Persiste le JSON brut dans localStorage pour éviter de re-uploader à chaque visite.
+
+import { processData } from '../lib/process-data';
+import type { PegassRawData, ProcessedData } from '../lib/types';
+
+const STORAGE_KEY = 'pegass-dashboard:raw-data';
+
+interface DataState {
+  data: ProcessedData | null;
+  error: string | null;
+  loading: boolean;
+}
+
+function createStore() {
+  const state = $state<DataState>({
+    data: null,
+    error: null,
+    loading: false
+  });
+
+  function load(raw: PegassRawData): void {
+    state.loading = true;
+    state.error = null;
+    try {
+      state.data = processData(raw);
+      persist(raw);
+    } catch (e) {
+      state.error = e instanceof Error ? e.message : String(e);
+      state.data = null;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  async function loadFromFile(file: File): Promise<void> {
+    state.loading = true;
+    state.error = null;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as PegassRawData;
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.benevoles)) {
+        throw new Error('Format JSON invalide : le champ "benevoles" est absent ou n\'est pas un tableau.');
+      }
+      state.data = processData(parsed);
+      persist(parsed);
+    } catch (e) {
+      state.error = e instanceof Error ? e.message : String(e);
+      state.data = null;
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  function reset(): void {
+    state.data = null;
+    state.error = null;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // localStorage indisponible (mode privé, etc.) — non bloquant
+    }
+  }
+
+  function hydrateFromStorage(): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as PegassRawData;
+      state.data = processData(parsed);
+    } catch {
+      // Données corrompues — on les ignore silencieusement
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* noop */
+      }
+    }
+  }
+
+  function persist(raw: PegassRawData): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+    } catch {
+      // Quota dépassé ou indispo — non bloquant, l'app fonctionne sans persistance
+    }
+  }
+
+  return {
+    get state() {
+      return state;
+    },
+    load,
+    loadFromFile,
+    reset,
+    hydrateFromStorage
+  };
+}
+
+export const dataStore = createStore();

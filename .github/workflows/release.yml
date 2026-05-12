@@ -1,0 +1,60 @@
+name: Release offline HTML
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (ex: v0.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build:offline
+
+      - name: Compute version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rename offline artifact
+        run: cp dist-offline/index.html pegass-dashboard-offline-${{ steps.version.outputs.version }}.html
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          files: pegass-dashboard-offline-${{ steps.version.outputs.version }}.html
+          generate_release_notes: true
+          body: |
+            ## Dashboard Pegass — ${{ steps.version.outputs.version }}
+
+            ### Téléchargement
+
+            - **Version offline** : `pegass-dashboard-offline-${{ steps.version.outputs.version }}.html`
+              Un fichier HTML unique. Téléchargez-le, double-cliquez : marche sans connexion.
+            - **Version en ligne** : disponible sur GitHub Pages dès le merge sur `main`.
+
+            Toutes les données restent dans votre navigateur. Rien n'est envoyé sur Internet.

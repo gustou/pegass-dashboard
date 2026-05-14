@@ -38,36 +38,37 @@ export function deduplicateMissions(benevoles: PegassBenevole[]): number {
       unique.push(m);
     }
 
+    b.missions = unique;
+
+    let heuresTotal = 0;
+    let heuresLocales = 0;
+    let heuresExternes = 0;
+    const parMois: Record<string, number> = {};
+    const parType: Record<string, number> = {};
+
+    for (const m of unique) {
+      const h = m.heures ?? 0;
+      heuresTotal += h;
+      if (m.externe) heuresExternes += h;
+      else heuresLocales += h;
+
+      const mois = (m.date ?? '').slice(0, 7);
+      if (mois) parMois[mois] = (parMois[mois] ?? 0) + h;
+
+      const type = m.groupeAction || 'Autre';
+      parType[type] = (parType[type] ?? 0) + h;
+    }
+
+    b.heures = {
+      total: round2(heuresTotal),
+      locales: round2(heuresLocales),
+      externes: round2(heuresExternes),
+      par_mois: mapValues(parMois, round2),
+      par_type: mapValues(parType, round2)
+    };
+
     if (removed > 0) {
       totalDuplicatesRemoved += removed;
-      b.missions = unique;
-
-      let heuresTotal = 0;
-      let heuresLocales = 0;
-      let heuresExternes = 0;
-      const parMois: Record<string, number> = {};
-      const parType: Record<string, number> = {};
-
-      for (const m of unique) {
-        const h = m.heures ?? 0;
-        heuresTotal += h;
-        if (m.externe) heuresExternes += h;
-        else heuresLocales += h;
-
-        const mois = (m.date ?? '').slice(0, 7);
-        if (mois) parMois[mois] = (parMois[mois] ?? 0) + h;
-
-        const type = m.groupeAction || 'Autre';
-        parType[type] = (parType[type] ?? 0) + h;
-      }
-
-      b.heures = {
-        total: round2(heuresTotal),
-        locales: round2(heuresLocales),
-        externes: round2(heuresExternes),
-        par_mois: mapValues(parMois, round2),
-        par_type: mapValues(parType, round2)
-      };
     }
   }
 
@@ -90,8 +91,15 @@ function sortKeysAsc<V>(obj: Record<string, V>): Record<string, V> {
  * Traite les données brutes Pegass et calcule toutes les statistiques agrégées.
  * Port direct de process_data() côté Flask.
  */
-export function processData(raw: PegassRawData): ProcessedData {
-  const benevoles: PegassBenevole[] = raw.benevoles ?? [];
+export function processData(raw: PegassRawData, activityFilter: string[] = []): ProcessedData {
+  const benevoles: PegassBenevole[] = (raw.benevoles ?? []).map(b => ({
+    ...b,
+    missions: b.missions ? b.missions.filter(m => {
+      if (activityFilter.length === 0) return true;
+      const type = m.groupeAction || 'Autre';
+      return activityFilter.includes(type);
+    }) : []
+  }));
   const metadata = raw.metadata ?? {};
 
   const duplicatesRemoved = deduplicateMissions(benevoles);

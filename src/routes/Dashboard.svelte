@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ChartConfiguration } from 'chart.js';
   import { dataStore } from '../stores/data.svelte';
-  import { hashLink } from '../lib/router.svelte';
+  import { hashLink, router } from '../lib/router.svelte';
   import { formatHeures, formatInt, formatMonth, pluralize } from '../lib/format';
   import Chart from '../components/Chart.svelte';
 
@@ -48,6 +48,7 @@
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: true, position: 'top' } },
       scales: {
         x: { stacked: true },
@@ -74,6 +75,7 @@
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { position: 'right' } }
     }
   });
@@ -107,6 +109,33 @@
       ? structuresMode === 'heures'
         ? sortedStructures[0]!.heures
         : sortedStructures[0]!.nb_activites
+      : 1
+  );
+
+  const sortedRenforts = $derived(
+    [...data.benevoles]
+      .filter((b) => b.renfort && ((b.heures?.total ?? 0) > 0 || (b.missions ?? []).length > 0))
+      .map((b) => ({
+        id: b.id,
+        nom: b.nom ?? '',
+        prenom: b.prenom ?? '',
+        structure: b.structure ?? '',
+        heures: b.heures?.total ?? 0,
+        heures_locales: b.heures?.locales ?? 0,
+        heures_externes: b.heures?.externes ?? 0,
+        nb_activites: (b.missions ?? []).length
+      }))
+      .sort((a, b) =>
+        benevolesMode === 'heures' ? b.heures - a.heures : b.nb_activites - a.nb_activites
+      )
+      .slice(0, 10)
+  );
+
+  const maxRenforts = $derived(
+    sortedRenforts.length > 0
+      ? benevolesMode === 'heures'
+        ? sortedRenforts[0]!.heures
+        : sortedRenforts[0]!.nb_activites
       : 1
   );
 
@@ -230,12 +259,16 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
   <div class="bg-white rounded-lg shadow p-6">
     <h2 class="text-lg font-semibold text-gray-800 mb-4">Heures par mois</h2>
-    <Chart config={chartMois} />
+    <div class="h-64 relative">
+      <Chart config={chartMois} />
+    </div>
   </div>
 
   <div class="bg-white rounded-lg shadow p-6">
     <h2 class="text-lg font-semibold text-gray-800 mb-4">Répartition par type d'activité</h2>
-    <Chart config={chartType} />
+    <div class="h-64 relative">
+      <Chart config={chartType} />
+    </div>
   </div>
 </div>
 
@@ -255,22 +288,19 @@
       </button>
     </div>
   </div>
-  <div class="space-y-3">
+  <div class="space-y-1">
     {#each sortedBenevoles as b, i (b.id)}
       {@const value = benevolesMode === 'heures' ? b.heures : b.nb_activites}
       {@const pctLocales = benevolesMode === 'heures' ? (b.heures_locales / maxBenevoles) * 100 : 0}
       {@const pctExt = benevolesMode === 'heures'
         ? (b.heures_externes / maxBenevoles) * 100
         : (value / maxBenevoles) * 100}
-      <div class="flex items-center">
+      <div class="flex items-center hover:bg-gray-50 cursor-pointer py-1 px-2 -mx-2 rounded transition-colors text-sm" onclick={() => router.navigate('/benevole/' + b.id)}>
         <div class="w-8 text-center font-bold text-gray-400">{i + 1}</div>
         <div class="flex-1 min-w-0">
-          <a
-            href={hashLink('/benevole/' + b.id)}
-            class="font-medium text-gray-800 hover:text-(--color-crf-red) truncate block"
-          >
+          <span class="font-medium text-gray-800 hover:text-(--color-crf-red) truncate block">
             {b.nom} {b.prenom}
-          </a>
+          </span>
         </div>
         <div class="w-64 mx-4">
           <div class="bg-gray-200 rounded-full h-4 overflow-hidden flex">
@@ -325,11 +355,11 @@
         </button>
       </div>
     </div>
-    <div class="space-y-3">
+    <div class="space-y-1">
       {#each sortedStructures as s, i (s.nom)}
         {@const value = structuresMode === 'heures' ? s.heures : s.nb_activites}
         {@const pct = (value / maxStructures) * 100}
-        <div class="flex items-center">
+        <div class="flex items-center py-1 text-sm">
           <div class="w-8 text-center font-bold text-gray-400">{i + 1}</div>
           <div class="flex-1 min-w-0">
             <a
@@ -352,6 +382,76 @@
           </div>
         </div>
       {/each}
+    </div>
+  </div>
+{/if}
+
+<!-- Top 10 renforts -->
+{#if sortedRenforts.length > 0}
+  <div class="bg-white rounded-lg shadow p-6 mt-8">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <h2 class="text-lg font-semibold text-gray-800">Top 10 renforts</h2>
+      <div class="flex rounded-lg overflow-hidden border border-gray-300">
+        <button onclick={() => (benevolesMode = 'heures')} class={toggleClass(benevolesMode === 'heures')}>
+          Heures
+        </button>
+        <button
+          onclick={() => (benevolesMode = 'activites')}
+          class={toggleClass(benevolesMode === 'activites')}
+        >
+          Activités
+        </button>
+      </div>
+    </div>
+    <div class="space-y-1">
+      {#each sortedRenforts as b, i (b.id)}
+        {@const value = benevolesMode === 'heures' ? b.heures : b.nb_activites}
+        {@const pctLocales = benevolesMode === 'heures' ? (b.heures_locales / maxRenforts) * 100 : 0}
+        {@const pctExt = benevolesMode === 'heures'
+          ? (b.heures_externes / maxRenforts) * 100
+          : (value / maxRenforts) * 100}
+        <div class="flex items-center hover:bg-gray-50 cursor-pointer py-1 px-2 -mx-2 rounded transition-colors text-sm" onclick={() => router.navigate('/benevole/' + b.id)}>
+          <div class="w-8 text-center font-bold text-gray-400">{i + 1}</div>
+          <div class="flex-1 min-w-0 truncate">
+            <span class="font-medium text-gray-800 hover:text-(--color-crf-red)">
+              {b.nom} {b.prenom}
+            </span>
+            {#if b.structure}
+              <span class="text-xs text-gray-400 ml-2">
+                {b.structure}
+              </span>
+            {/if}
+          </div>
+          <div class="w-64 mx-4">
+            <div class="bg-gray-200 rounded-full h-4 overflow-hidden flex">
+              {#if benevolesMode === 'heures'}
+                <div class="bg-green-500 h-full" style="width: {pctLocales}%"></div>
+                <div class="bg-blue-500 h-full" style="width: {pctExt}%"></div>
+              {:else}
+                <div class="bg-(--color-crf-red) h-full" style="width: {pctExt}%"></div>
+              {/if}
+            </div>
+          </div>
+          {#if benevolesMode === 'heures'}
+            <div class="w-32 text-right text-xs">
+              <span class="text-green-600">{formatHeures(b.heures_locales)}</span>
+              <span class="text-gray-400">/</span>
+              <span class="text-blue-600">{formatHeures(b.heures_externes)}</span>
+            </div>
+          {/if}
+          <div class="w-20 text-right font-semibold text-(--color-crf-red)">
+            {benevolesMode === 'heures' ? formatHeures(value) + 'h' : value + ' act.'}
+          </div>
+        </div>
+      {/each}
+    </div>
+    <div class="mt-4 text-xs text-gray-500 flex items-center gap-4">
+      <span class="flex items-center gap-1"
+        ><span class="w-3 h-3 bg-green-500 rounded"></span> Locales</span
+      >
+      <span class="flex items-center gap-1"
+        ><span class="w-3 h-3 bg-blue-500 rounded"></span> Externes</span
+      >
     </div>
   </div>
 {/if}

@@ -62,6 +62,7 @@
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: true, position: 'top' } },
       scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
     }
@@ -80,7 +81,7 @@
         }
       ]
     },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   });
 
   // Modale activités communes
@@ -171,12 +172,16 @@
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Heures par mois</h2>
-      <Chart config={chartMois} />
+      <div class="h-64 relative">
+        <Chart config={chartMois} />
+      </div>
     </div>
 
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="text-lg font-semibold text-gray-800 mb-4">Par type d'activité</h2>
-      <Chart config={chartType} />
+      <div class="h-64 relative">
+        <Chart config={chartType} />
+      </div>
     </div>
   </div>
 
@@ -187,12 +192,12 @@
       <p class="text-sm text-gray-500 mb-4">
         Personnes ayant participé aux mêmes activités (cliquez pour voir les détails)
       </p>
-      <div class="space-y-3">
+      <div class="space-y-1">
         {#each coequipiers as c, i (c.id)}
           {@const percent = (c.nb_activites / maxCoequipiersAct) * 100}
           <button
             type="button"
-            class="flex items-center w-full text-left hover:bg-gray-50 rounded p-2 -mx-2"
+            class="flex items-center w-full text-left hover:bg-gray-50 rounded py-1 px-2 -mx-2 text-sm"
             onclick={() => openModal(c)}
           >
             <div class="w-8 text-center font-bold text-gray-400">{i + 1}</div>
@@ -206,7 +211,7 @@
                 {/if}
               </span>
               {#if !c.est_local && c.structure}
-                <span class="text-xs text-gray-400 block">
+                <span class="text-xs text-gray-400 ml-2 inline">
                   {c.structure.length > 30 ? c.structure.slice(0, 30) + '…' : c.structure}
                 </span>
               {/if}

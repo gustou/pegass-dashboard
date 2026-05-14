@@ -1,14 +1,14 @@
 <script lang="ts">
   import { dataStore } from '../stores/data.svelte';
-  import { hashLink } from '../lib/router.svelte';
+  import { hashLink, router } from '../lib/router.svelte';
   import { formatHeures } from '../lib/format';
 
   type SortKey = 'nom' | 'prenom' | 'heures' | 'locales' | 'externes' | 'missions';
 
   const data = $derived(dataStore.state.data!);
 
-  let search = $state('');
-  let membresOnly = $state(false);
+  import { filters } from '../stores/filters.svelte';
+
   let sortKey = $state<SortKey>('heures');
   let sortAsc = $state(false);
 
@@ -53,13 +53,16 @@
   const filtered = $derived(
     data.benevoles
       .filter((b) => {
-        if (membresOnly && b.renfort) return false;
-        if (!search.trim()) return true;
+        if (filters.membresOnly && b.renfort) return false;
+        if (filters.selectedActivities.length > 0 && (b.missions ?? []).length === 0) {
+          return false;
+        }
+        if (!filters.search.trim()) return true;
         const haystack = [b.nom, b.prenom, b.structure, b.nivol, b.id]
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
-        return haystack.includes(search.toLowerCase());
+        return haystack.includes(filters.search.toLowerCase());
       })
       .slice()
       .sort(compareBy(sortKey))
@@ -99,14 +102,14 @@
     <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
       <input
         type="checkbox"
-        bind:checked={membresOnly}
+        bind:checked={filters.membresOnly}
         class="w-4 h-4 text-red-600 rounded focus:ring-red-500"
       />
-      Membres uniquement (sans renforts)
+      Membres (sans renforts)
     </label>
     <input
       type="text"
-      bind:value={search}
+      bind:value={filters.search}
       placeholder="Rechercher…"
       class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
     />
@@ -159,14 +162,11 @@
         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
           Type
         </th>
-        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Actions
-        </th>
       </tr>
     </thead>
     <tbody class="bg-white divide-y divide-gray-200">
       {#each filtered as b (b.id)}
-        <tr class="hover:bg-gray-50">
+        <tr class="hover:bg-gray-50 cursor-pointer" onclick={() => router.navigate('/benevole/' + b.id)}>
           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{b.nom ?? ''}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{b.prenom ?? ''}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -198,14 +198,6 @@
                 Membre
               </span>
             {/if}
-          </td>
-          <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
-            <a
-              href={hashLink('/benevole/' + b.id)}
-              class="text-(--color-crf-red) hover:underline"
-            >
-              Voir détail
-            </a>
           </td>
         </tr>
       {/each}

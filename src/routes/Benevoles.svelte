@@ -1,6 +1,6 @@
 <script lang="ts">
   import { dataStore } from '../stores/data.svelte';
-  import { hashLink, router } from '../lib/router.svelte';
+  import { router } from '../lib/router.svelte';
   import { formatHeures } from '../lib/format';
 
   type SortKey = 'nom' | 'prenom' | 'heures' | 'locales' | 'externes' | 'missions';

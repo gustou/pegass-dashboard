@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ChartConfiguration } from 'chart.js';
   import { dataStore } from '../stores/data.svelte';
-  import { hashLink, router } from '../lib/router.svelte';
+  import { hashLink } from '../lib/router.svelte';
   import { formatHeures, formatInt, formatMonth, pluralize } from '../lib/format';
   import Chart from '../components/Chart.svelte';
 
@@ -295,7 +295,10 @@
       {@const pctExt = benevolesMode === 'heures'
         ? (b.heures_externes / maxBenevoles) * 100
         : (value / maxBenevoles) * 100}
-      <div class="flex items-center hover:bg-gray-50 cursor-pointer py-1 px-2 -mx-2 rounded transition-colors text-sm" onclick={() => router.navigate('/benevole/' + b.id)}>
+      <a
+        href={hashLink('/benevole/' + b.id)}
+        class="flex items-center hover:bg-gray-50 cursor-pointer py-1 px-2 -mx-2 rounded transition-colors text-sm no-underline text-inherit"
+      >
         <div class="w-8 text-center font-bold text-gray-400">{i + 1}</div>
         <div class="flex-1 min-w-0">
           <span class="font-medium text-gray-800 hover:text-(--color-crf-red) truncate block">
@@ -322,7 +325,7 @@
         <div class="w-20 text-right font-semibold text-(--color-crf-red)">
           {benevolesMode === 'heures' ? formatHeures(value) + 'h' : value + ' act.'}
         </div>
-      </div>
+      </a>
     {/each}
   </div>
   <div class="mt-4 text-xs text-gray-500 flex items-center gap-4">
@@ -410,7 +413,10 @@
         {@const pctExt = benevolesMode === 'heures'
           ? (b.heures_externes / maxRenforts) * 100
           : (value / maxRenforts) * 100}
-        <div class="flex items-center hover:bg-gray-50 cursor-pointer py-1 px-2 -mx-2 rounded transition-colors text-sm" onclick={() => router.navigate('/benevole/' + b.id)}>
+        <a
+          href={hashLink('/benevole/' + b.id)}
+          class="flex items-center hover:bg-gray-50 cursor-pointer py-1 px-2 -mx-2 rounded transition-colors text-sm no-underline text-inherit"
+        >
           <div class="w-8 text-center font-bold text-gray-400">{i + 1}</div>
           <div class="flex-1 min-w-0 truncate">
             <span class="font-medium text-gray-800 hover:text-(--color-crf-red)">
@@ -442,7 +448,7 @@
           <div class="w-20 text-right font-semibold text-(--color-crf-red)">
             {benevolesMode === 'heures' ? formatHeures(value) + 'h' : value + ' act.'}
           </div>
-        </div>
+        </a>
       {/each}
     </div>
     <div class="mt-4 text-xs text-gray-500 flex items-center gap-4">

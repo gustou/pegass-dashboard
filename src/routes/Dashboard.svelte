@@ -3,6 +3,7 @@
   import { dataStore } from '../stores/data.svelte';
   import { hashLink } from '../lib/router.svelte';
   import { formatHeures, formatInt, formatMonth, pluralize } from '../lib/format';
+  import { computeAnnulationRatioByActivityName } from '../lib/derived';
   import Chart from '../components/Chart.svelte';
 
   type Mode = 'heures' | 'activites';
@@ -61,6 +62,51 @@
     '#e30613', '#ff5722', '#ff9800', '#ffc107',
     '#8bc34a', '#4caf50', '#00bcd4', '#2196f3'
   ];
+
+  const annulationParActivite = $derived(computeAnnulationRatioByActivityName(data));
+
+  const chartAnnulations = $derived<ChartConfiguration>({
+    type: 'bar',
+    data: {
+      labels: annulationParActivite.map((a) => a.nom),
+      datasets: [
+        {
+          label: 'Taux d\'annulation (%)',
+          data: annulationParActivite.map((a) => a.ratio),
+          backgroundColor: '#e30613',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const row = annulationParActivite[ctx.dataIndex];
+              if (!row) return '';
+              return `${row.annulees} annulé${row.annulees > 1 ? 's' : ''} sur ${row.total} événement${row.total > 1 ? 's' : ''} (${row.ratio} %)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: (v) => `${v} %` }
+        }
+      }
+    }
+  });
+
+  const chartAnnulationsHeight = $derived(
+    Math.max(256, annulationParActivite.length * 36)
+  );
 
   const chartType = $derived<ChartConfiguration>({
     type: 'doughnut',
@@ -271,6 +317,20 @@
     </div>
   </div>
 </div>
+
+{#if annulationParActivite.length > 0}
+  <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-1">Taux d'annulation par activité</h2>
+    <p class="text-sm text-gray-500 mb-4">
+      Événements annulés / total par nom d'activité (activités sans annulation exclues).
+    </p>
+    <div class="relative" style="height: {chartAnnulationsHeight}px">
+      {#key annulationParActivite.map((a) => `${a.nom}:${a.ratio}`).join('|')}
+        <Chart config={chartAnnulations} />
+      {/key}
+    </div>
+  </div>
+{/if}
 
 <!-- Top 10 bénévoles -->
 <div class="bg-white rounded-lg shadow p-6 mb-8">

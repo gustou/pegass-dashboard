@@ -3,6 +3,7 @@
 
 import type {
   PegassBenevole,
+  PegassEvenement,
   PegassMission,
   PegassRawData,
   ProcessedData,
@@ -91,15 +92,22 @@ function sortKeysAsc<V>(obj: Record<string, V>): Record<string, V> {
  * Traite les données brutes Pegass et calcule toutes les statistiques agrégées.
  * Port direct de process_data() côté Flask.
  */
+function matchesActivityFilter(groupeAction: string | undefined, activityFilter: string[]): boolean {
+  if (activityFilter.length === 0) return true;
+  const type = groupeAction || 'Autre';
+  return activityFilter.includes(type);
+}
+
 export function processData(raw: PegassRawData, activityFilter: string[] = []): ProcessedData {
   const benevoles: PegassBenevole[] = (raw.benevoles ?? []).map(b => ({
     ...b,
-    missions: b.missions ? b.missions.filter(m => {
-      if (activityFilter.length === 0) return true;
-      const type = m.groupeAction || 'Autre';
-      return activityFilter.includes(type);
-    }) : []
+    missions: b.missions
+      ? b.missions.filter((m) => matchesActivityFilter(m.groupeAction, activityFilter))
+      : []
   }));
+  const evenements: PegassEvenement[] = (raw.evenements ?? []).filter((e) =>
+    matchesActivityFilter(e.groupeAction, activityFilter)
+  );
   const metadata = raw.metadata ?? {};
 
   const duplicatesRemoved = deduplicateMissions(benevoles);
@@ -209,6 +217,7 @@ export function processData(raw: PegassRawData, activityFilter: string[] = []): 
   return {
     metadata,
     benevoles,
+    evenements,
     duplicates_removed: duplicatesRemoved,
     stats: {
       total_benevoles: benevoles.length,

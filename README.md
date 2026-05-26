@@ -89,9 +89,20 @@ Généré par [Pegass Extractor](https://github.com/gustou/pegass-extractor), le
       "heures": { "total": 156, "par_mois": {}, "par_type": {} },
       "missions": [{ "date": "2024-04-14", "heures": 8 }]
     }
+  ],
+  "evenements": [
+    {
+      "id": "...",
+      "nom": "...",
+      "statut": "Validée",
+      "groupeAction": "Urgence et Secourisme",
+      "date": "2024-04-14"
+    }
   ]
 }
 ```
+
+Voir [`exemple_extraction.json`](https://github.com/gustou/pegass-extractor/blob/main/exemple_extraction.json) dans Pegass Extractor pour le schéma complet.
 
 ## 📄 Licence
 

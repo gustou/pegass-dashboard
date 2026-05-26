@@ -4,12 +4,33 @@
 export interface PegassMetadata {
   date_extraction?: string;
   unite_locale?: string;
-  structure_id?: number;
+  structure_id?: number | string;
+  mode?: string;
   periode?: {
     debut?: string;
     fin?: string;
   };
+  config_snapshot?: Record<string, unknown>;
   version?: string;
+}
+
+/** Séance / activité extraite côté structure (schéma extracteur ≥ 1.3). */
+export interface PegassEvenement {
+  id: string;
+  activiteId?: string;
+  nom?: string;
+  statut?: string | null;
+  type?: string;
+  groupeAction?: string;
+  date?: string;
+  debut?: string;
+  fin?: string;
+  heures?: number;
+  adresse?: string;
+  structure?: string;
+  structureId?: string;
+  inscriptions_count?: number;
+  sans_inscription?: boolean;
 }
 
 export interface PegassMission {
@@ -50,6 +71,7 @@ export interface PegassBenevole {
 export interface PegassRawData {
   metadata?: PegassMetadata;
   benevoles?: PegassBenevole[];
+  evenements?: PegassEvenement[];
   stats?: unknown;
 }
 
@@ -91,6 +113,7 @@ export interface PegassStats {
 export interface ProcessedData {
   metadata: PegassMetadata;
   benevoles: PegassBenevole[];
+  evenements: PegassEvenement[];
   duplicates_removed: number;
   stats: PegassStats;
 }

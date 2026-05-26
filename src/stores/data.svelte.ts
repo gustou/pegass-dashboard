@@ -111,6 +111,9 @@ function createStore() {
           types.add(m.groupeAction || 'Autre');
         }
       }
+      for (const e of state.raw.evenements ?? []) {
+        types.add(e.groupeAction || 'Autre');
+      }
       return Array.from(types).sort();
     },
     load,

@@ -3,7 +3,9 @@ import {
   computeTopCoequipiers,
   computeStructureDetail,
   computeActiviteDetail,
-  computeHeuresLocalesExternesParMois
+  computeHeuresLocalesExternesParMois,
+  computeAnnulationRatioByActivityName,
+  isEvenementAnnule
 } from '../src/lib/derived';
 import { processData } from '../src/lib/process-data';
 import type { PegassRawData } from '../src/lib/types';
@@ -129,6 +131,57 @@ describe('computeStructureDetail', () => {
   it('retourne null pour une structure inconnue', () => {
     const data = processData(RAW);
     expect(computeStructureDetail('INEXISTANT', data)).toBeNull();
+  });
+});
+
+describe('isEvenementAnnule', () => {
+  it('detecte les statuts annules (libelles Pegass et codes legacy)', () => {
+    expect(isEvenementAnnule('Annulée')).toBe(true);
+    expect(isEvenementAnnule('ANNULEE')).toBe(true);
+    expect(isEvenementAnnule('ANNULE')).toBe(true);
+    expect(isEvenementAnnule('Validée')).toBe(false);
+    expect(isEvenementAnnule('VALIDEE')).toBe(false);
+    expect(isEvenementAnnule('EN_ATTENTE')).toBe(false);
+    expect(isEvenementAnnule(null)).toBe(false);
+  });
+});
+
+describe('computeAnnulationRatioByActivityName', () => {
+  it('calcule le ratio par nom sur evenements et exclut sans annulation', () => {
+    const raw: PegassRawData = {
+      metadata: {},
+      benevoles: [],
+      evenements: [
+        { id: 'e1', nom: 'DPS Marathon', statut: 'Annulée', groupeAction: 'Secours' },
+        { id: 'e2', nom: 'DPS Marathon', statut: 'Validée', groupeAction: 'Secours' },
+        { id: 'e3', nom: 'Maraude', statut: 'Validée', groupeAction: 'Action Sociale' },
+        { id: 'e4', nom: '02-CASTOR', statut: 'Annulée', groupeAction: 'Secours' }
+      ]
+    };
+    const data = processData(raw);
+    const out = computeAnnulationRatioByActivityName(data);
+    expect(out).toHaveLength(2);
+    expect(out[0]!.nom).toBe('02-CASTOR');
+    expect(out[0]!.ratio).toBe(100);
+    expect(out[1]!.nom).toBe('DPS Marathon');
+    expect(out[1]!.total).toBe(2);
+    expect(out[1]!.annulees).toBe(1);
+    expect(out[1]!.ratio).toBe(50);
+  });
+
+  it('respecte le filtre par secteur d activite', () => {
+    const raw: PegassRawData = {
+      metadata: {},
+      benevoles: [],
+      evenements: [
+        { id: 'e1', nom: 'DPS Marathon', statut: 'Annulée', groupeAction: 'Secours' },
+        { id: 'e2', nom: 'Maraude', statut: 'Annulée', groupeAction: 'Action Sociale' }
+      ]
+    };
+    const data = processData(raw, ['Secours']);
+    const out = computeAnnulationRatioByActivityName(data);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.nom).toBe('DPS Marathon');
   });
 });
 

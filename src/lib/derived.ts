@@ -7,6 +7,14 @@ import type {
   ProcessedData
 } from './types';
 
+function normalizeStatut(statut: string): string {
+  return statut
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toUpperCase();
+}
+
 export interface CoequipierActivite {
   activiteId: string;
   nom: string;
@@ -318,4 +326,55 @@ export function computeActiviteDetail(
 /** Tri décroissant par date pour l'historique des missions d'un bénévole. */
 export function sortMissionsByDateDesc(missions: PegassMission[]): PegassMission[] {
   return [...missions].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+}
+
+/** Indique si un événement est annulé (statut Pegass : « Annulée », etc.). */
+export function isEvenementAnnule(statut: string | null | undefined): boolean {
+  if (!statut) return false;
+  const s = normalizeStatut(statut);
+  return s === 'ANNULEE' || s === 'ANNULE' || s.startsWith('ANNULE');
+}
+
+/** @deprecated Utiliser {@link isEvenementAnnule} */
+export const isMissionAnnulee = isEvenementAnnule;
+
+export interface ActivityAnnulationRatio {
+  nom: string;
+  total: number;
+  annulees: number;
+  /** Pourcentage 0–100 */
+  ratio: number;
+}
+
+/**
+ * Ratio d'annulation par nom d'activité (événements / séances du JSON extracteur).
+ * Exclut les activités sans aucun événement annulé.
+ */
+export function computeAnnulationRatioByActivityName(
+  data: ProcessedData
+): ActivityAnnulationRatio[] {
+  const byName = new Map<string, { total: number; annulees: number }>();
+
+  for (const e of data.evenements) {
+    const nom = (e.nom ?? '').trim() || 'Sans nom';
+    let entry = byName.get(nom);
+    if (!entry) {
+      entry = { total: 0, annulees: 0 };
+      byName.set(nom, entry);
+    }
+    entry.total += 1;
+    if (isEvenementAnnule(e.statut)) {
+      entry.annulees += 1;
+    }
+  }
+
+  return [...byName.entries()]
+    .filter(([, v]) => v.annulees > 0)
+    .map(([nom, v]) => ({
+      nom,
+      total: v.total,
+      annulees: v.annulees,
+      ratio: v.total > 0 ? Math.round((v.annulees / v.total) * 1000) / 10 : 0
+    }))
+    .sort((a, b) => b.ratio - a.ratio || b.annulees - a.annulees);
 }

@@ -23,8 +23,9 @@ describe('deduplicateMissions', () => {
         { debut: '2024-01-02T08:00', fin: '2024-01-02T12:00', date: '2024-01-02', heures: 4 }
       ]
     });
-    const removed = deduplicateMissions([b]);
+    const { removed, duplicates } = deduplicateMissions([b]);
     expect(removed).toBe(0);
+    expect(duplicates).toHaveLength(0);
     expect(b.missions).toHaveLength(2);
   });
 
@@ -36,8 +37,10 @@ describe('deduplicateMissions', () => {
         { debut: '2024-01-02T08:00', fin: '2024-01-02T12:00', date: '2024-01-02', heures: 4, groupeAction: 'Urgence et Secourisme' }
       ]
     });
-    const removed = deduplicateMissions([b]);
+    const { removed, duplicates } = deduplicateMissions([b]);
     expect(removed).toBe(1);
+    expect(duplicates).toHaveLength(1);
+    expect(duplicates[0]?.benevole_id).toBe('B1');
     expect(b.missions).toHaveLength(2);
   });
 
@@ -49,7 +52,7 @@ describe('deduplicateMissions', () => {
         { debut: '2024-02-05T08:00', fin: '2024-02-05T18:00', date: '2024-02-05', heures: 10, externe: true, groupeAction: 'Soutien aux activités' }
       ]
     });
-    const removed = deduplicateMissions([b]);
+    const { removed } = deduplicateMissions([b]);
     expect(removed).toBe(1);
     expect(b.heures?.total).toBe(14);
     expect(b.heures?.locales).toBe(4);
@@ -183,6 +186,7 @@ describe('processData', () => {
     };
     const out = processData(raw);
     expect(out.duplicates_removed).toBe(2);
+    expect(out.duplicates).toHaveLength(2);
     expect(out.benevoles[0]?.missions).toHaveLength(1);
   });
 });

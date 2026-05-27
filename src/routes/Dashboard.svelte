@@ -190,6 +190,31 @@
       ? 'px-3 py-1 text-sm bg-(--color-crf-red) text-white'
       : 'px-3 py-1 text-sm bg-white text-gray-600 hover:bg-gray-100';
   }
+
+  const sortedDuplicates = $derived(
+    [...(data.duplicates ?? [])].sort((a, b) => {
+      const dateCmp = (b.mission.date ?? '').localeCompare(a.mission.date ?? '');
+      if (dateCmp !== 0) return dateCmp;
+      const nomCmp = a.benevole_nom.localeCompare(b.benevole_nom);
+      if (nomCmp !== 0) return nomCmp;
+      return a.benevole_prenom.localeCompare(b.benevole_prenom);
+    })
+  );
+
+  function formatDateFR(s: string): string {
+    if (!s) return '';
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return s;
+    return d.toLocaleDateString('fr-FR');
+  }
+
+  function formatTimeRange(debut: string | undefined, fin: string | undefined): string {
+    const t = (iso: string | undefined) => (iso && iso.length > 11 ? iso.slice(11, 16) : '');
+    const d = t(debut);
+    const f = t(fin);
+    if (d && f) return `${d} – ${f}`;
+    return d || f || '';
+  }
 </script>
 
 <!-- En-tête -->
@@ -200,9 +225,64 @@
     {data.metadata.periode?.fin ?? '?'}
   </p>
   {#if data.duplicates_removed > 0}
-    <p class="text-sm text-orange-600 mt-1">
-      ⚠ {data.duplicates_removed} activité{data.duplicates_removed > 1 ? 's' : ''} en double supprimée{data.duplicates_removed > 1 ? 's' : ''} des statistiques
-    </p>
+    <details class="mt-2 text-sm group">
+      <summary
+        class="text-orange-600 cursor-pointer list-none flex items-center gap-1 hover:text-orange-700 [&::-webkit-details-marker]:hidden"
+      >
+        <span class="text-gray-400 group-open:rotate-90 transition-transform inline-block">▸</span>
+        ⚠ {data.duplicates_removed} activité{data.duplicates_removed > 1 ? 's' : ''} en double supprimée{data.duplicates_removed > 1 ? 's' : ''} des statistiques
+        <span class="text-orange-500 font-medium">— voir le détail</span>
+      </summary>
+      <div class="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-4 max-h-80 overflow-y-auto">
+        <p class="text-xs text-orange-800 mb-3">
+          Même bénévole, même créneau (début et fin identiques). Seule la première occurrence est conservée dans les statistiques.
+        </p>
+        <ul class="space-y-2">
+          {#each sortedDuplicates as dup, i (`${dup.benevole_id}|${dup.mission.debut}|${dup.mission.fin}|${i}`)}
+            {@const m = dup.mission}
+            <li
+              class="flex flex-wrap items-start justify-between gap-2 p-3 rounded bg-white border border-orange-100 text-gray-800"
+            >
+              <div class="flex-1 min-w-0">
+                <a
+                  href={hashLink('/benevole/' + dup.benevole_id)}
+                  class="font-medium hover:text-(--color-crf-red)"
+                >
+                  {dup.benevole_nom} {dup.benevole_prenom}
+                </a>
+                <div class="mt-0.5">
+                  {#if m.activiteId}
+                    <a
+                      href={hashLink('/activite/' + encodeURIComponent(m.activiteId))}
+                      class="text-gray-800 hover:text-(--color-crf-red)"
+                    >
+                      {m.nom || 'Activité sans nom'}
+                    </a>
+                  {:else}
+                    <span>{m.nom || 'Activité sans nom'}</span>
+                  {/if}
+                </div>
+                {#if m.groupeAction}
+                  <div class="text-xs text-gray-500">{m.groupeAction}</div>
+                {/if}
+              </div>
+              <div class="text-right text-xs shrink-0">
+                <div class="font-medium text-gray-700">{formatDateFR(m.date ?? '')}</div>
+                {#if formatTimeRange(m.debut, m.fin)}
+                  <div class="text-gray-500">{formatTimeRange(m.debut, m.fin)}</div>
+                {/if}
+                <div class="mt-0.5 {m.externe ? 'text-blue-600' : 'text-green-600'}">
+                  {m.externe ? m.structure || 'Externe' : 'Local'}
+                  {#if m.heures != null}
+                    · {formatHeures(m.heures)}h
+                  {/if}
+                </div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    </details>
   {/if}
 </div>
 

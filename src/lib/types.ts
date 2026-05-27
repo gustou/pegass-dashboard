@@ -110,10 +110,19 @@ export interface PegassStats {
   top_benevoles: TopBenevole[];
 }
 
+/** Mission retirée car même créneau (debut + fin) qu'une autre pour le même bénévole. */
+export interface DuplicateMission {
+  benevole_id: string;
+  benevole_nom: string;
+  benevole_prenom: string;
+  mission: PegassMission;
+}
+
 export interface ProcessedData {
   metadata: PegassMetadata;
   benevoles: PegassBenevole[];
   evenements: PegassEvenement[];
   duplicates_removed: number;
+  duplicates: DuplicateMission[];
   stats: PegassStats;
 }

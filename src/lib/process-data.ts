@@ -2,6 +2,7 @@
 // Aucune dépendance externe — peut tourner dans le navigateur ou sous Node (tests).
 
 import type {
+  DuplicateMission,
   PegassBenevole,
   PegassEvenement,
   PegassMission,
@@ -11,6 +12,11 @@ import type {
   TopBenevole
 } from './types';
 
+export interface DeduplicateResult {
+  removed: number;
+  duplicates: DuplicateMission[];
+}
+
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
@@ -18,8 +24,9 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
  * et recalcule les agrégats d'heures. Mute les bénévoles passés. Retourne le
  * nombre total de doublons supprimés.
  */
-export function deduplicateMissions(benevoles: PegassBenevole[]): number {
+export function deduplicateMissions(benevoles: PegassBenevole[]): DeduplicateResult {
   let totalDuplicatesRemoved = 0;
+  const duplicates: DuplicateMission[] = [];
 
   for (const b of benevoles) {
     const missions = b.missions ?? [];
@@ -33,6 +40,12 @@ export function deduplicateMissions(benevoles: PegassBenevole[]): number {
       const key = `${m.debut ?? ''}|${m.fin ?? ''}`;
       if (seen.has(key)) {
         removed += 1;
+        duplicates.push({
+          benevole_id: b.id,
+          benevole_nom: b.nom ?? '',
+          benevole_prenom: b.prenom ?? '',
+          mission: { ...m }
+        });
         continue;
       }
       seen.add(key);
@@ -73,7 +86,7 @@ export function deduplicateMissions(benevoles: PegassBenevole[]): number {
     }
   }
 
-  return totalDuplicatesRemoved;
+  return { removed: totalDuplicatesRemoved, duplicates };
 }
 
 function mapValues<V, R>(obj: Record<string, V>, fn: (v: V) => R): Record<string, R> {
@@ -110,7 +123,7 @@ export function processData(raw: PegassRawData, activityFilter: string[] = []): 
   );
   const metadata = raw.metadata ?? {};
 
-  const duplicatesRemoved = deduplicateMissions(benevoles);
+  const { removed: duplicatesRemoved, duplicates } = deduplicateMissions(benevoles);
 
   let heuresParMois: Record<string, number> = {};
   let heuresLocalesParMois: Record<string, number> = {};
@@ -219,6 +232,7 @@ export function processData(raw: PegassRawData, activityFilter: string[] = []): 
     benevoles,
     evenements,
     duplicates_removed: duplicatesRemoved,
+    duplicates,
     stats: {
       total_benevoles: benevoles.length,
       benevoles_actifs: benevolesActifs,
